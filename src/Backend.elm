@@ -24,6 +24,7 @@ init : ( Model, Cmd BackendMsg )
 init =
     ( { userCredentials = Dict.empty
       , userSessions = Dict.empty
+      , adminSession = Nothing
       }
     , Cmd.none
     )
@@ -99,7 +100,7 @@ updateFromFrontend sessionId clientId msg model =
 
         AdminLoginRequest { password } ->
             if password == Env.adminPassword then
-                ( model
+                ( { model | adminSession = Just sessionId }
                 , Dict.keys model.userCredentials
                     |> AdminLoggedIn
                     |> Lamdera.sendToFrontend clientId
@@ -111,3 +112,34 @@ updateFromFrontend sessionId clientId msg model =
                     clientId
                     (BadCredentials { username = "" })
                 )
+
+        AdminLogoutRequest ->
+            { model | adminSession = Nothing }
+                |> updateFromFrontend sessionId clientId GetLoginInfo
+
+        DeleteUserRequest user ->
+            case model.adminSession of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just adminSession ->
+                    if adminSession == sessionId then
+                        let
+                            newModel =
+                                { model
+                                    | userCredentials =
+                                        Dict.remove user model.userCredentials
+                                    , userSessions =
+                                        Dict.filter
+                                            (\_ user_val -> user /= user_val)
+                                            model.userSessions
+                                }
+                        in
+                        ( newModel
+                        , Dict.keys newModel.userCredentials
+                            |> AdminLoggedIn
+                            |> Lamdera.sendToFrontend clientId
+                        )
+
+                    else
+                        ( model, Cmd.none )

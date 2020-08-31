@@ -65,7 +65,7 @@ update msg model =
                     ( { model | state = Starting Nothing }
                     , Cmd.batch
                         [ Nav.pushUrl model.key "/"
-                        , Lamdera.sendToBackend GetLoginInfo
+                        , Lamdera.sendToBackend AdminLogoutRequest
                         ]
                     )
 
@@ -191,6 +191,9 @@ update msg model =
                 _ ->
                     -- Not supposed to receive these messages in the other cases
                     ( model, Cmd.none )
+
+        DeleteUser user ->
+            ( model, Lamdera.sendToBackend (DeleteUserRequest user) )
 
 
 urlParser : Parser (Route -> a) a
@@ -602,4 +605,15 @@ viewUser user =
         [ Attr.style "font-family" "sans-serif"
         , Attr.style "padding-top" "20px"
         ]
-        [ Html.text user ]
+        [ Html.text user
+        , Html.span
+            [ Attr.style "padding-left" "15px" ]
+            [ Html.button
+                [ Attr.style "font-style"
+                    "italic"
+                , onClick
+                    (DeleteUser user)
+                ]
+                [ Html.text "Delete" ]
+            ]
+        ]

@@ -46,6 +46,7 @@ type alias FrontendModel =
 type alias BackendModel =
     { userCredentials : Dict String String
     , userSessions : Dict SessionId String
+    , adminSession : Maybe SessionId
     }
 
 
@@ -59,6 +60,7 @@ type FrontendMsg
     | UsernameInput String
     | PasswordInput String
     | PasswordAgainInput String
+    | DeleteUser String
 
 
 type ToBackend
@@ -67,6 +69,8 @@ type ToBackend
     | LoginRequest { username : String, password : String }
     | LogoutRequest
     | AdminLoginRequest { password : String }
+    | AdminLogoutRequest
+    | DeleteUserRequest String
 
 
 type BackendMsg
