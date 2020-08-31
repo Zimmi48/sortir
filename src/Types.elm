@@ -26,12 +26,15 @@ type Route
     = HomeRoute
     | LoginRoute
     | SignupRoute
+    | AdminRoute
 
 
 type LocalState
     = Starting (Maybe Route)
     | LoggedIn
     | NotLoggedIn NotLoggedInPage
+    | AdminLogin { password : String, badCredentials : Bool }
+    | AdminDashboard { users : List String }
 
 
 type alias FrontendModel =
@@ -63,6 +66,7 @@ type ToBackend
     | SignupRequest { username : String, password : String }
     | LoginRequest { username : String, password : String }
     | LogoutRequest
+    | AdminLoginRequest { password : String }
 
 
 type BackendMsg
@@ -74,3 +78,4 @@ type ToFrontend
     | YouAreLoggedIn String
     | UsernameAlreadyExists { username : String }
     | BadCredentials { username : String }
+    | AdminLoggedIn (List String)

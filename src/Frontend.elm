@@ -57,7 +57,20 @@ update msg model =
             ( model, Nav.pushUrl model.key "/login" )
 
         LogoutButton ->
-            ( model, Lamdera.sendToBackend LogoutRequest )
+            case model.state of
+                LoggedIn ->
+                    ( model, Lamdera.sendToBackend LogoutRequest )
+
+                AdminDashboard _ ->
+                    ( { model | state = Starting Nothing }
+                    , Cmd.batch
+                        [ Nav.pushUrl model.key "/"
+                        , Lamdera.sendToBackend GetLoginInfo
+                        ]
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
         SendButton ->
             case model.state of
@@ -81,6 +94,12 @@ update msg model =
                             , password = loginModel.password
                             }
                         )
+                    )
+
+                AdminLogin { password } ->
+                    ( model
+                    , Lamdera.sendToBackend
+                        (AdminLoginRequest { password = password })
                     )
 
                 _ ->
@@ -145,6 +164,15 @@ update msg model =
                     , Cmd.none
                     )
 
+                AdminLogin _ ->
+                    ( { model
+                        | state =
+                            AdminLogin
+                                { password = value, badCredentials = False }
+                      }
+                    , Cmd.none
+                    )
+
                 _ ->
                     -- Not supposed to receive these messages in the other cases
                     ( model, Cmd.none )
@@ -171,6 +199,7 @@ urlParser =
         [ Parser.map HomeRoute Parser.top
         , Parser.map LoginRoute (s "login")
         , Parser.map SignupRoute (s "signup")
+        , Parser.map AdminRoute (s "admin")
         ]
 
 
@@ -179,8 +208,35 @@ routeChanged maybeRoute model =
     let
         unknown =
             ( model, Nav.pushUrl model.key "/" )
+
+        backToInit route =
+            ( { model | state = Starting route }
+            , Lamdera.sendToBackend GetLoginInfo
+            )
     in
     case ( maybeRoute, model.state ) of
+        ( Just AdminRoute, state ) ->
+            case state of
+                AdminLogin _ ->
+                    ( model, Cmd.none )
+
+                AdminDashboard _ ->
+                    ( model, Cmd.none )
+
+                _ ->
+                    ( { model
+                        | state =
+                            AdminLogin { password = "", badCredentials = False }
+                      }
+                    , Cmd.none
+                    )
+
+        ( route, AdminLogin _ ) ->
+            backToInit route
+
+        ( route, AdminDashboard _ ) ->
+            backToInit route
+
         ( Nothing, _ ) ->
             unknown
 
@@ -220,6 +276,9 @@ routeChanged maybeRoute model =
                       }
                     , Cmd.none
                     )
+
+                _ ->
+                    ( model, Cmd.none )
 
         ( Just route, LoggedIn ) ->
             case route of
@@ -294,8 +353,20 @@ updateFromBackend msg model =
                     , Cmd.none
                     )
 
+                AdminLogin _ ->
+                    ( { model
+                        | state =
+                            AdminLogin
+                                { password = "", badCredentials = True }
+                      }
+                    , Cmd.none
+                    )
+
                 _ ->
                     ( model, Cmd.none )
+
+        AdminLoggedIn users ->
+            ( { model | state = AdminDashboard { users = users } }, Cmd.none )
 
 
 view model =
@@ -314,6 +385,12 @@ view model =
 
         NotLoggedIn (Signup signupModel) ->
             viewSignup signupModel
+
+        AdminLogin adminLoginModel ->
+            viewAdminLogin adminLoginModel
+
+        AdminDashboard adminModel ->
+            viewAdminDashboard adminModel
 
 
 viewStarting =
@@ -429,6 +506,54 @@ viewSignup model =
     }
 
 
+viewAdminLogin model =
+    { title = "Sortir | Admin login page"
+    , body =
+        [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
+            [ Html.div
+                [ Attr.style "font-family" "sans-serif"
+                , Attr.style "padding-top" "40px"
+                ]
+                [ Html.text "Please log in" ]
+            , Html.div
+                [ Attr.style "font-family" "sans-serif"
+                , Attr.style "padding-top" "20px"
+                ]
+                [ viewInput "password" "Password" model.password PasswordInput
+                , viewBadCredentials model
+                ]
+            , Html.div
+                [ Attr.style "font-family" "sans-serif"
+                , Attr.style "padding-top" "10px"
+                ]
+                [ Html.button [ onClick SendButton ] [ Html.text "Log in" ] ]
+            ]
+        ]
+    }
+
+
+viewAdminDashboard model =
+    { title = "Sortir | Admin dashboard"
+    , body =
+        [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
+            ([ Html.div
+                [ Attr.style "font-family" "sans-serif"
+                , Attr.style "padding-top" "40px"
+                ]
+                [ Html.text "This is the list of user accounts:" ]
+             ]
+                ++ List.map viewUser model.users
+                ++ [ Html.div
+                        [ Attr.style "font-family" "sans-serif"
+                        , Attr.style "padding-top" "20px"
+                        ]
+                        [ Html.button [ onClick LogoutButton ] [ Html.text "Log out" ] ]
+                   ]
+            )
+        ]
+    }
+
+
 viewInput t p v toMsg =
     Html.div []
         [ Html.input
@@ -470,3 +595,11 @@ viewUsernameAlreadyExists model =
 
         Nothing ->
             Html.div [] []
+
+
+viewUser user =
+    Html.div
+        [ Attr.style "font-family" "sans-serif"
+        , Attr.style "padding-top" "20px"
+        ]
+        [ Html.text user ]

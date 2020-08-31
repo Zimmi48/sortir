@@ -1,6 +1,7 @@
 module Backend exposing (..)
 
 import Dict exposing (Dict)
+import Env
 import Html
 import Lamdera exposing (ClientId, SessionId)
 import Types exposing (..)
@@ -95,3 +96,18 @@ updateFromFrontend sessionId clientId msg model =
             ( { model | userSessions = Dict.remove sessionId model.userSessions }
             , Lamdera.sendToFrontend clientId YouAreNotLoggedIn
             )
+
+        AdminLoginRequest { password } ->
+            if password == Env.adminPassword then
+                ( model
+                , Dict.keys model.userCredentials
+                    |> AdminLoggedIn
+                    |> Lamdera.sendToFrontend clientId
+                )
+
+            else
+                ( model
+                , Lamdera.sendToFrontend
+                    clientId
+                    (BadCredentials { username = "" })
+                )
