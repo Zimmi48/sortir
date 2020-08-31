@@ -9,8 +9,17 @@ import Url exposing (Url)
 
 type NotLoggedInPage
     = Home
-    | Signup { username : String, password : String, passwordAgain : String }
-    | Login { username : String, password : String }
+    | Signup
+        { username : String
+        , password : String
+        , passwordAgain : String
+        , alreadyExistingUsername : Maybe String
+        }
+    | Login
+        { username : String
+        , password : String
+        , badCredentials : Bool
+        }
 
 
 type Route
@@ -63,3 +72,5 @@ type BackendMsg
 type ToFrontend
     = YouAreNotLoggedIn
     | YouAreLoggedIn String
+    | UsernameAlreadyExists { username : String }
+    | BadCredentials { username : String }

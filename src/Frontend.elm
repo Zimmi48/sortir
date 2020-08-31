@@ -75,7 +75,12 @@ update msg model =
 
                 NotLoggedIn (Login loginModel) ->
                     ( { model | state = Starting (Just LoginRoute) }
-                    , Lamdera.sendToBackend (LoginRequest loginModel)
+                    , Lamdera.sendToBackend
+                        (LoginRequest
+                            { username = loginModel.username
+                            , password = loginModel.password
+                            }
+                        )
                     )
 
                 _ ->
@@ -87,7 +92,12 @@ update msg model =
                     ( { model
                         | state =
                             NotLoggedIn
-                                (Signup { signupModel | username = value })
+                                (Signup
+                                    { signupModel
+                                        | username = value
+                                        , alreadyExistingUsername = Nothing
+                                    }
+                                )
                       }
                     , Cmd.none
                     )
@@ -96,7 +106,12 @@ update msg model =
                     ( { model
                         | state =
                             NotLoggedIn
-                                (Login { loginModel | username = value })
+                                (Login
+                                    { loginModel
+                                        | username = value
+                                        , badCredentials = False
+                                    }
+                                )
                       }
                     , Cmd.none
                     )
@@ -120,7 +135,12 @@ update msg model =
                     ( { model
                         | state =
                             NotLoggedIn
-                                (Login { loginModel | password = value })
+                                (Login
+                                    { loginModel
+                                        | password = value
+                                        , badCredentials = False
+                                    }
+                                )
                       }
                     , Cmd.none
                     )
@@ -180,6 +200,7 @@ routeChanged maybeRoute model =
                                     { username = ""
                                     , password = ""
                                     , passwordAgain = ""
+                                    , alreadyExistingUsername = Nothing
                                     }
                                 )
                       }
@@ -193,6 +214,7 @@ routeChanged maybeRoute model =
                                 (Login
                                     { username = ""
                                     , password = ""
+                                    , badCredentials = False
                                     }
                                 )
                       }
@@ -234,6 +256,46 @@ updateFromBackend msg model =
 
                 _ ->
                     ( returnModel, Cmd.none )
+
+        UsernameAlreadyExists { username } ->
+            case model.state of
+                Starting (Just SignupRoute) ->
+                    ( { model
+                        | state =
+                            NotLoggedIn
+                                (Signup
+                                    { username = username
+                                    , password = ""
+                                    , passwordAgain = ""
+                                    , alreadyExistingUsername =
+                                        Just username
+                                    }
+                                )
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        BadCredentials { username } ->
+            case model.state of
+                Starting (Just LoginRoute) ->
+                    ( { model
+                        | state =
+                            NotLoggedIn
+                                (Login
+                                    { username = username
+                                    , password = ""
+                                    , badCredentials = True
+                                    }
+                                )
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 view model =
@@ -326,6 +388,7 @@ viewLogin model =
                 ]
                 [ viewInput "text" "Username" model.username UsernameInput
                 , viewInput "password" "Password" model.password PasswordInput
+                , viewBadCredentials model
                 ]
             , Html.div
                 [ Attr.style "font-family" "sans-serif"
@@ -354,6 +417,7 @@ viewSignup model =
                 , viewInput "password" "Password" model.password PasswordInput
                 , viewInput "password" "Retype password" model.passwordAgain PasswordAgainInput
                 , viewValidation model
+                , viewUsernameAlreadyExists model
                 ]
             , Html.div
                 [ Attr.style "font-family" "sans-serif"
@@ -387,3 +451,22 @@ viewValidation model =
 
     else
         Html.div [ Attr.style "color" "red" ] [ Html.text "Passwords do not match!" ]
+
+
+viewBadCredentials model =
+    if model.badCredentials then
+        Html.div [ Attr.style "color" "red" ] [ Html.text "Bad username or password!" ]
+
+    else
+        Html.div [] []
+
+
+viewUsernameAlreadyExists model =
+    case model.alreadyExistingUsername of
+        Just username ->
+            Html.div
+                [ Attr.style "color" "red" ]
+                [ "Username " ++ username ++ " already exists!" |> Html.text ]
+
+        Nothing ->
+            Html.div [] []

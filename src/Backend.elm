@@ -50,8 +50,11 @@ updateFromFrontend sessionId clientId msg model =
 
         SignupRequest { username, password } ->
             if Dict.member username model.userCredentials then
-                -- TODO: better response for when username already exists
-                ( model, Lamdera.sendToFrontend clientId YouAreNotLoggedIn )
+                ( model
+                , Lamdera.sendToFrontend
+                    clientId
+                    (UsernameAlreadyExists { username = username })
+                )
 
             else
                 ( { model
@@ -64,9 +67,17 @@ updateFromFrontend sessionId clientId msg model =
                 )
 
         LoginRequest { username, password } ->
+            let
+                badCredentials =
+                    ( model
+                    , Lamdera.sendToFrontend
+                        clientId
+                        (BadCredentials { username = username })
+                    )
+            in
             case Dict.get username model.userCredentials of
                 Nothing ->
-                    ( model, Lamdera.sendToFrontend clientId YouAreNotLoggedIn )
+                    badCredentials
 
                 Just correctPassword ->
                     if password == correctPassword then
@@ -78,7 +89,7 @@ updateFromFrontend sessionId clientId msg model =
                         )
 
                     else
-                        ( model, Lamdera.sendToFrontend clientId YouAreNotLoggedIn )
+                        badCredentials
 
         LogoutRequest ->
             ( { model | userSessions = Dict.remove sessionId model.userSessions }
