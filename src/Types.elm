@@ -53,8 +53,6 @@ type alias BackendModel =
 type FrontendMsg
     = UrlClicked UrlRequest
     | UrlChanged Url
-    | LoginButton
-    | SignupButton
     | LogoutButton
     | SendButton
     | UsernameInput String

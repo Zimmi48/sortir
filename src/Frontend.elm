@@ -50,12 +50,6 @@ update msg model =
         UrlChanged url ->
             routeChanged (parse urlParser url) model
 
-        SignupButton ->
-            ( model, Nav.pushUrl model.key "/signup" )
-
-        LoginButton ->
-            ( model, Nav.pushUrl model.key "/login" )
-
         LogoutButton ->
             case model.state of
                 LoggedIn _ ->
@@ -437,17 +431,12 @@ viewHome =
                 [ Attr.style "font-family" "sans-serif"
                 , Attr.style "padding-top" "40px"
                 ]
-                [ Html.text "Please log in or sign up" ]
-            , Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "20px"
+                [ Html.text "Please "
+                , Html.a [ Attr.href "/login" ] [ Html.text "log in" ]
+                , Html.text " or "
+                , Html.a [ Attr.href "/signup" ] [ Html.text "sign up" ]
+                , Html.text "."
                 ]
-                [ Html.button [ onClick LoginButton ] [ Html.text "Log in" ] ]
-            , Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "10px"
-                ]
-                [ Html.button [ onClick SignupButton ] [ Html.text "Sign up" ] ]
             ]
         ]
     }
