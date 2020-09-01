@@ -31,7 +31,7 @@ type Route
 
 type LocalState
     = Starting (Maybe Route)
-    | LoggedIn
+    | LoggedIn { username : String }
     | NotLoggedIn NotLoggedInPage
     | AdminLogin { password : String, badCredentials : Bool }
     | AdminDashboard { users : List String }
@@ -79,7 +79,7 @@ type BackendMsg
 
 type ToFrontend
     = YouAreNotLoggedIn
-    | YouAreLoggedIn String
+    | YouAreLoggedIn { username : String }
     | UsernameAlreadyExists { username : String }
     | BadCredentials { username : String }
     | AdminLoggedIn (List String)

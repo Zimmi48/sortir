@@ -58,7 +58,7 @@ update msg model =
 
         LogoutButton ->
             case model.state of
-                LoggedIn ->
+                LoggedIn _ ->
                     ( model, Lamdera.sendToBackend LogoutRequest )
 
                 AdminDashboard _ ->
@@ -283,7 +283,7 @@ routeChanged maybeRoute model =
                 _ ->
                     ( model, Cmd.none )
 
-        ( Just route, LoggedIn ) ->
+        ( Just route, LoggedIn _ ) ->
             case route of
                 HomeRoute ->
                     ( model, Cmd.none )
@@ -307,10 +307,10 @@ updateFromBackend msg model =
                 _ ->
                     ( returnModel, Cmd.none )
 
-        YouAreLoggedIn _ ->
+        YouAreLoggedIn loggedInModel ->
             let
                 returnModel =
-                    { model | state = LoggedIn }
+                    { model | state = LoggedIn loggedInModel }
             in
             case model.state of
                 Starting route ->
@@ -377,8 +377,8 @@ view model =
         Starting _ ->
             viewStarting
 
-        LoggedIn ->
-            viewLoggedIn
+        LoggedIn loggedInModel ->
+            viewLoggedIn loggedInModel
 
         NotLoggedIn Home ->
             viewHome
@@ -410,7 +410,7 @@ viewStarting =
     }
 
 
-viewLoggedIn =
+viewLoggedIn model =
     { title = "Sortir"
     , body =
         [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
@@ -418,7 +418,7 @@ viewLoggedIn =
                 [ Attr.style "font-family" "sans-serif"
                 , Attr.style "padding-top" "40px"
                 ]
-                [ Html.text "This is your dashboard" ]
+                [ "Hello " ++ model.username ++ ". This is your dashboard" |> Html.text ]
             , Html.div
                 [ Attr.style "font-family" "sans-serif"
                 , Attr.style "padding-top" "20px"

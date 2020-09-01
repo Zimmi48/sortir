@@ -47,7 +47,9 @@ updateFromFrontend sessionId clientId msg model =
 
                 Just user ->
                     ( model
-                    , Lamdera.sendToFrontend clientId (YouAreLoggedIn user)
+                    , Lamdera.sendToFrontend
+                        clientId
+                        (YouAreLoggedIn { username = user })
                     )
 
         SignupRequest { username, password } ->
@@ -65,7 +67,9 @@ updateFromFrontend sessionId clientId msg model =
                     , userSessions =
                         Dict.insert sessionId username model.userSessions
                   }
-                , Lamdera.sendToFrontend clientId (YouAreLoggedIn username)
+                , Lamdera.sendToFrontend
+                    clientId
+                    (YouAreLoggedIn { username = username })
                 )
 
         LoginRequest { username, password } ->
@@ -87,7 +91,9 @@ updateFromFrontend sessionId clientId msg model =
                             | userSessions =
                                 Dict.insert sessionId username model.userSessions
                           }
-                        , Lamdera.sendToFrontend clientId (YouAreLoggedIn username)
+                        , Lamdera.sendToFrontend
+                            clientId
+                            (YouAreLoggedIn { username = username })
                         )
 
                     else
