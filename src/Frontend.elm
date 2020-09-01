@@ -2,9 +2,11 @@ module Frontend exposing (..)
 
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
-import Html exposing (Html)
-import Html.Attributes as Attr
-import Html.Events exposing (onClick, onInput)
+import Element exposing (Element)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
+import Element.Input as Input
 import Lamdera
 import Types exposing (..)
 import Url exposing (Url)
@@ -393,13 +395,12 @@ view model =
 viewStarting =
     { title = "Welcome to Sortir"
     , body =
-        [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
-            [ Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "40px"
-                ]
-                [ Html.text "Starting" ]
-            ]
+        [ "Starting"
+            |> Element.text
+            |> Element.el [ Element.centerX, Element.centerY ]
+            |> List.singleton
+            |> Element.row [ Element.width Element.fill ]
+            |> Element.layout [ Element.padding 20 ]
         ]
     }
 
@@ -407,37 +408,47 @@ viewStarting =
 viewLoggedIn model =
     { title = "Sortir"
     , body =
-        [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
-            [ Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "40px"
-                ]
-                [ "Hello " ++ model.username ++ ". This is your dashboard" |> Html.text ]
-            , Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "20px"
-                ]
-                [ Html.button [ onClick LogoutButton ] [ Html.text "Log out" ] ]
-            ]
+        [ topBar model
+            |> Element.layout [ Element.padding 20 ]
         ]
     }
+
+
+topBar model =
+    Element.row
+        [ Element.width Element.fill
+        , Element.padding 10
+        , Element.spacing 7
+        ]
+        [ "Sortir dashboard" |> Element.text
+        , "Logged in as "
+            ++ model.username
+            ++ "."
+            |> Element.text
+            |> Element.el [ Element.alignRight ]
+        , Input.button linkStyle
+            { onPress = Just LogoutButton
+            , label = Element.text "Log out"
+            }
+        ]
 
 
 viewHome =
     { title = "Welcome to Sortir"
     , body =
-        [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
-            [ Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "40px"
-                ]
-                [ Html.text "Please "
-                , Html.a [ Attr.href "/login" ] [ Html.text "log in" ]
-                , Html.text " or "
-                , Html.a [ Attr.href "/signup" ] [ Html.text "sign up" ]
-                , Html.text "."
-                ]
-            ]
+        [ [ Element.text "Please "
+          , Element.link linkStyle
+                { url = "/login", label = Element.text "log in" }
+          , Element.text " or "
+          , Element.link linkStyle
+                { url = "/signup", label = Element.text "sign up" }
+          , Element.text "."
+          ]
+            |> Element.paragraph []
+            |> Element.el [ Element.centerX, Element.centerY ]
+            |> List.singleton
+            |> Element.row [ Element.width Element.fill ]
+            |> Element.layout [ Element.padding 20 ]
         ]
     }
 
@@ -445,26 +456,28 @@ viewHome =
 viewLogin model =
     { title = "Welcome to Sortir | Login"
     , body =
-        [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
-            [ Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "40px"
-                ]
-                [ Html.text "Please log in" ]
-            , Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "20px"
-                ]
-                [ viewInput "text" "Username" model.username UsernameInput
-                , viewInput "password" "Password" model.password PasswordInput
-                , viewBadCredentials model
-                ]
-            , Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "10px"
-                ]
-                [ Html.button [ onClick SendButton ] [ Html.text "Log in" ] ]
-            ]
+        [ [ Element.text "Please log in"
+          , Input.username []
+                { onChange = UsernameInput
+                , text = model.username
+                , placeholder = Nothing
+                , label = "Username:" |> Element.text |> Input.labelLeft []
+                }
+          , Input.currentPassword []
+                { onChange = PasswordInput
+                , text = model.password
+                , placeholder = Nothing
+                , label = "Password:" |> Element.text |> Input.labelLeft []
+                , show = False
+                }
+          , viewBadCredentials model
+          , Input.button buttonStyle
+                { onPress = Just SendButton
+                , label = Element.text "Log in"
+                }
+          ]
+            |> Element.column [ Element.centerX, Element.spacing 10 ]
+            |> Element.layout [ Element.padding 20 ]
         ]
     }
 
@@ -472,28 +485,36 @@ viewLogin model =
 viewSignup model =
     { title = "Welcome to Sortir | Sign up"
     , body =
-        [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
-            [ Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "40px"
-                ]
-                [ Html.text "Please sign up" ]
-            , Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "20px"
-                ]
-                [ viewInput "text" "Username" model.username UsernameInput
-                , viewInput "password" "Password" model.password PasswordInput
-                , viewInput "password" "Retype password" model.passwordAgain PasswordAgainInput
-                , viewValidation model
-                , viewUsernameAlreadyExists model
-                ]
-            , Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "10px"
-                ]
-                [ Html.button [ onClick SendButton ] [ Html.text "Sign up" ] ]
-            ]
+        [ [ Element.text "Please sign up"
+          , Input.username []
+                { onChange = UsernameInput
+                , text = model.username
+                , placeholder = Nothing
+                , label = "Username:" |> Element.text |> Input.labelLeft []
+                }
+          , Input.newPassword []
+                { onChange = PasswordInput
+                , text = model.password
+                , placeholder = Nothing
+                , label = "Password:" |> Element.text |> Input.labelLeft []
+                , show = False
+                }
+          , Input.newPassword []
+                { onChange = PasswordAgainInput
+                , text = model.passwordAgain
+                , placeholder = Nothing
+                , label = "Retype password:" |> Element.text |> Input.labelLeft []
+                , show = False
+                }
+          , viewValidation model
+          , viewUsernameAlreadyExists model
+          , Input.button buttonStyle
+                { onPress = Just SendButton
+                , label = Element.text "Log in"
+                }
+          ]
+            |> Element.column [ Element.centerX, Element.spacing 10 ]
+            |> Element.layout [ Element.padding 20 ]
         ]
     }
 
@@ -501,25 +522,22 @@ viewSignup model =
 viewAdminLogin model =
     { title = "Sortir | Admin login page"
     , body =
-        [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
-            [ Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "40px"
-                ]
-                [ Html.text "Please log in" ]
-            , Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "20px"
-                ]
-                [ viewInput "password" "Password" model.password PasswordInput
-                , viewBadCredentials model
-                ]
-            , Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "10px"
-                ]
-                [ Html.button [ onClick SendButton ] [ Html.text "Log in" ] ]
-            ]
+        [ [ Element.text "Please log in"
+          , Input.currentPassword []
+                { onChange = PasswordInput
+                , text = model.password
+                , placeholder = Nothing
+                , label = "Password:" |> Element.text |> Input.labelLeft []
+                , show = False
+                }
+          , viewBadCredentials model
+          , Input.button buttonStyle
+                { onPress = Just SendButton
+                , label = Element.text "Log in"
+                }
+          ]
+            |> Element.column [ Element.centerX, Element.spacing 10 ]
+            |> Element.layout [ Element.padding 20 ]
         ]
     }
 
@@ -527,82 +545,87 @@ viewAdminLogin model =
 viewAdminDashboard model =
     { title = "Sortir | Admin dashboard"
     , body =
-        [ Html.div [ Attr.style "text-align" "center", Attr.style "padding-top" "40px" ]
-            ([ Html.div
-                [ Attr.style "font-family" "sans-serif"
-                , Attr.style "padding-top" "40px"
+        [ [ Element.row
+                [ Element.width Element.fill
+                , Element.padding 10
+                , Element.spacing 7
                 ]
-                [ Html.text "This is the list of user accounts:" ]
-             ]
-                ++ List.map viewUser model.users
-                ++ [ Html.div
-                        [ Attr.style "font-family" "sans-serif"
-                        , Attr.style "padding-top" "20px"
-                        ]
-                        [ Html.button [ onClick LogoutButton ] [ Html.text "Log out" ] ]
-                   ]
-            )
+                [ "Admin dashboard" |> Element.text
+                , Input.button (linkStyle ++ [ Element.alignRight ])
+                    { onPress = Just LogoutButton
+                    , label = Element.text "Log out"
+                    }
+                ]
+          , "This is the list of user accounts:"
+                |> Element.text
+                |> Element.el [ Element.centerX ]
+          ]
+            ++ List.map viewUser model.users
+            |> Element.column
+                [ Element.width Element.fill
+                , Element.padding 20
+                , Element.spacing 15
+                ]
+            |> Element.layout [ Element.padding 20 ]
         ]
     }
 
 
-viewInput t p v toMsg =
-    Html.div []
-        [ Html.input
-            [ Attr.type_ t
-            , Attr.placeholder p
-            , Attr.value v
-            , onInput toMsg
-            ]
-            []
-        ]
-
-
-viewValidation : { a | password : String, passwordAgain : String } -> Html msg
 viewValidation model =
     if model.password == "" || model.passwordAgain == "" then
-        Html.div [] []
+        Element.none
 
     else if model.password == model.passwordAgain then
-        Html.div [ Attr.style "color" "green" ] [ Html.text "Passwords match!" ]
+        "Passwords match!"
+            |> Element.text
+            |> Element.el [ Font.color (Element.rgb255 0 128 0) ]
 
     else
-        Html.div [ Attr.style "color" "red" ] [ Html.text "Passwords do not match!" ]
+        "Passwords do not match!"
+            |> Element.text
+            |> Element.el [ Font.color (Element.rgb255 255 0 0) ]
 
 
 viewBadCredentials model =
     if model.badCredentials then
-        Html.div [ Attr.style "color" "red" ] [ Html.text "Bad username or password!" ]
+        "Bad username or password!"
+            |> Element.text
+            |> Element.el [ Font.color (Element.rgb255 255 0 0) ]
 
     else
-        Html.div [] []
+        Element.none
 
 
 viewUsernameAlreadyExists model =
     case model.alreadyExistingUsername of
         Just username ->
-            Html.div
-                [ Attr.style "color" "red" ]
-                [ "Username " ++ username ++ " already exists!" |> Html.text ]
+            "Username "
+                ++ username
+                ++ " already exists!"
+                |> Element.text
+                |> Element.el [ Font.color (Element.rgb255 255 0 0) ]
 
         Nothing ->
-            Html.div [] []
+            Element.none
 
 
 viewUser user =
-    Html.div
-        [ Attr.style "font-family" "sans-serif"
-        , Attr.style "padding-top" "20px"
+    Element.row [ Element.centerX, Element.spacing 20 ]
+        [ Element.text user
+        , Input.button linkStyle { onPress = Just (DeleteUser user), label = Element.text "Delete" }
         ]
-        [ Html.text user
-        , Html.span
-            [ Attr.style "padding-left" "15px" ]
-            [ Html.button
-                [ Attr.style "font-style"
-                    "italic"
-                , onClick
-                    (DeleteUser user)
-                ]
-                [ Html.text "Delete" ]
-            ]
-        ]
+
+
+linkStyle =
+    [ Font.color (Element.rgb255 178 34 34)
+    , Font.underline
+    ]
+
+
+buttonStyle =
+    [ Background.color (Element.rgb255 220 220 220)
+    , Border.rounded 7
+    , Border.width 1
+    , Border.color (Element.rgb255 128 128 128)
+    , Element.paddingXY 30 7
+    ]
