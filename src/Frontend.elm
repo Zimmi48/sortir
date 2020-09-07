@@ -2,6 +2,7 @@ module Frontend exposing (..)
 
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
+import Debug
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
@@ -188,8 +189,10 @@ update msg model =
                     -- Not supposed to receive these messages in the other cases
                     ( model, Cmd.none )
 
-        DeleteUser user ->
-            ( model, Lamdera.sendToBackend (DeleteUserRequest user) )
+        AdminAction request ->
+            ( model
+            , request |> AdminRequest |> Lamdera.sendToBackend
+            )
 
 
 urlParser : Parser (Route -> a) a
@@ -366,6 +369,13 @@ updateFromBackend msg model =
 
         AdminLoggedIn users ->
             ( { model | state = AdminDashboard { users = users } }, Cmd.none )
+
+        Log log ->
+            let
+                _ =
+                    Debug.log "Log from backend:" log
+            in
+            ( model, Cmd.none )
 
 
 view model =
@@ -556,15 +566,28 @@ viewAdminDashboard model =
                     , label = Element.text "Log out"
                     }
                 ]
-          , "This is the list of user accounts:"
+          , Input.button (buttonStyle ++ [ Element.centerX ])
+                { onPress = CallAllocineApi |> AdminAction |> Just
+                , label = Element.text "Call Allocine API"
+                }
+          , Input.button (buttonStyle ++ [ Element.centerX ])
+                { onPress = Decode |> AdminAction |> Just
+                , label = Element.text "Decode"
+                }
+          , [ "This is the list of user accounts:"
                 |> Element.text
-                |> Element.el [ Element.centerX ]
+            ]
+                ++ List.map viewUser model.users
+                |> Element.column
+                    [ Element.padding 20
+                    , Element.spacing 15
+                    , Element.centerX
+                    ]
           ]
-            ++ List.map viewUser model.users
             |> Element.column
                 [ Element.width Element.fill
                 , Element.padding 20
-                , Element.spacing 15
+                , Element.spacing 30
                 ]
             |> Element.layout [ Element.padding 20 ]
         ]
@@ -612,7 +635,10 @@ viewUsernameAlreadyExists model =
 viewUser user =
     Element.row [ Element.centerX, Element.spacing 20 ]
         [ Element.text user
-        , Input.button linkStyle { onPress = Just (DeleteUser user), label = Element.text "Delete" }
+        , Input.button linkStyle
+            { onPress = DeleteUserRequest user |> AdminAction |> Just
+            , label = Element.text "Delete"
+            }
         ]
 
 

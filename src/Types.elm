@@ -1,10 +1,21 @@
 module Types exposing (..)
 
+import Array exposing (Array)
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
-import Lamdera exposing (SessionId)
+import Http
+import Lamdera exposing (ClientId, SessionId)
+import Result exposing (Result)
+import Time
 import Url exposing (Url)
+
+
+type RemoteData a
+    = NotAsked
+    | Loading
+    | Failure Http.Error
+    | Success a
 
 
 type NotLoggedInPage
@@ -37,6 +48,23 @@ type LocalState
     | AdminDashboard { users : List String }
 
 
+type alias Movie =
+    { title : String
+    , directors : Maybe String
+    , actors : Maybe String
+    , releaseYear : Maybe Int
+    , runtime : Maybe Int
+    , posterLink : Maybe String
+    }
+
+
+type alias Theater =
+    { name : String
+    , address : String
+    , postalCode : String
+    }
+
+
 type alias FrontendModel =
     { key : Key
     , state : LocalState
@@ -46,7 +74,12 @@ type alias FrontendModel =
 type alias BackendModel =
     { userCredentials : Dict String String
     , userSessions : Dict SessionId String
-    , adminSession : Maybe SessionId
+    , adminSession : Maybe ClientId
+    , movies : Dict Int Movie
+    , theaters : Dict String Theater
+    , showtimes : List ( Time.Posix, List { movie : Int, theater : String } )
+    , now : Time.Posix
+    , lastAllocineResponse : Array (Array (RemoteData String))
     }
 
 
@@ -58,7 +91,7 @@ type FrontendMsg
     | UsernameInput String
     | PasswordInput String
     | PasswordAgainInput String
-    | DeleteUser String
+    | AdminAction AdminRequest
 
 
 type ToBackend
@@ -68,11 +101,18 @@ type ToBackend
     | LogoutRequest
     | AdminLoginRequest { password : String }
     | AdminLogoutRequest
-    | DeleteUserRequest String
+    | AdminRequest AdminRequest
+
+
+type AdminRequest
+    = DeleteUserRequest String
+    | CallAllocineApi
+    | Decode
 
 
 type BackendMsg
-    = NoOpBackendMsg
+    = SetTime Time.Posix
+    | AllocineResponse { queryNum : Int, page : Int } (Result Http.Error String)
 
 
 type ToFrontend
@@ -81,3 +121,4 @@ type ToFrontend
     | UsernameAlreadyExists { username : String }
     | BadCredentials { username : String }
     | AdminLoggedIn (List String)
+    | Log String
