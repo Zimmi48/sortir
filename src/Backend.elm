@@ -319,8 +319,14 @@ adminRequestUpdate clientId msg model =
                 Result.map3
                     (\theaters movies showtimes ->
                         { model
-                            | theaters = Dict.fromList theaters
-                            , movies = Dict.fromList movies
+                            | theaters =
+                                Dict.union
+                                    (Dict.fromList theaters)
+                                    model.theaters
+                            , movies =
+                                Dict.union
+                                    (Dict.fromList movies)
+                                    model.movies
                             , showtimes = showtimes
                         }
                     )
