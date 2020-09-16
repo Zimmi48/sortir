@@ -202,6 +202,7 @@ urlParser =
         , Parser.map LoginRoute (s "login")
         , Parser.map SignupRoute (s "signup")
         , Parser.map AdminRoute (s "admin")
+        , Parser.map MovieRoute (s "movie" </> Parser.int)
         ]
 
 
@@ -282,10 +283,26 @@ routeChanged maybeRoute model =
                 _ ->
                     ( model, Cmd.none )
 
-        ( Just route, LoggedIn _ ) ->
+        ( Just route, LoggedIn loggedInModel ) ->
             case route of
                 HomeRoute ->
-                    ( model, Cmd.none )
+                    ( { model
+                        | state =
+                            LoggedIn { loggedInModel | page = Dashboard }
+                      }
+                    , Cmd.none
+                    )
+
+                MovieRoute code ->
+                    ( { model
+                        | state =
+                            LoggedIn
+                                { loggedInModel
+                                    | page = MoviePage code Loading
+                                }
+                      }
+                    , code |> MovieRequest |> Lamdera.sendToBackend
+                    )
 
                 _ ->
                     unknown
@@ -306,10 +323,16 @@ updateFromBackend msg model =
                 _ ->
                     ( returnModel, Cmd.none )
 
-        YouAreLoggedIn loggedInModel ->
+        YouAreLoggedIn { username } ->
             let
                 returnModel =
-                    { model | state = LoggedIn loggedInModel }
+                    { model
+                        | state =
+                            LoggedIn
+                                { username = username
+                                , page = Dashboard
+                                }
+                    }
             in
             case model.state of
                 Starting route ->
@@ -377,6 +400,34 @@ updateFromBackend msg model =
             in
             ( model, Cmd.none )
 
+        MovieResponse code resp ->
+            case model.state of
+                LoggedIn ({ page } as loggedInModel) ->
+                    case page of
+                        MoviePage actualCode _ ->
+                            if code == actualCode then
+                                ( { model
+                                    | state =
+                                        LoggedIn
+                                            { loggedInModel
+                                                | page =
+                                                    resp
+                                                        |> resultToRemoteData
+                                                        |> MoviePage code
+                                            }
+                                  }
+                                , Cmd.none
+                                )
+
+                            else
+                                ( model, Cmd.none )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 view model =
     case model.state of
@@ -418,10 +469,67 @@ viewStarting =
 viewLoggedIn model =
     { title = "Sortir"
     , body =
-        [ topBar model
+        [ [ topBar model
+          , model.page |> viewLoggedInPage |> Element.el [ Element.centerX ]
+          ]
+            |> Element.column
+                [ Element.width Element.fill
+                , Element.padding 20
+                , Element.spacing 30
+                ]
             |> Element.layout [ Element.padding 20 ]
         ]
     }
+
+
+viewLoggedInPage page =
+    case page of
+        Dashboard ->
+            Element.text "Dashboard"
+
+        MoviePage _ NotAsked ->
+            Element.text "Error: movie not asked to backend"
+
+        MoviePage _ Loading ->
+            Element.text "Loading movie"
+
+        MoviePage _ (Failure error) ->
+            "Error retrieving movie: " ++ error |> Element.text
+
+        MoviePage _ (Success movie) ->
+            [ "Title: " ++ movie.title |> Element.text
+            , movie.directors
+                |> Maybe.map (\directors -> "Director(s): " ++ directors)
+                |> Maybe.map Element.text
+                |> Maybe.withDefault Element.none
+            , movie.actors
+                |> Maybe.map (\actors -> "Actor(s): " ++ actors)
+                |> Maybe.map Element.text
+                |> Maybe.withDefault Element.none
+            , movie.releaseYear
+                |> Maybe.map (\year -> "Release: " ++ String.fromInt year)
+                |> Maybe.map Element.text
+                |> Maybe.withDefault Element.none
+            , movie.runtime
+                |> Maybe.map (\seconds -> seconds // 60 |> String.fromInt)
+                |> Maybe.map (\year -> "Duration: " ++ year ++ " minutes")
+                |> Maybe.map Element.text
+                |> Maybe.withDefault Element.none
+            , movie.posterLink
+                |> Maybe.map
+                    (\src ->
+                        { src = src
+                        , description = "Movie's poster"
+                        }
+                            |> Element.image
+                                [ Element.fill
+                                    |> Element.maximum 500
+                                    |> Element.width
+                                ]
+                    )
+                |> Maybe.withDefault Element.none
+            ]
+                |> Element.column [ Element.spacing 20, Element.padding 50 ]
 
 
 topBar model =

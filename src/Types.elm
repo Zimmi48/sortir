@@ -11,11 +11,24 @@ import Time
 import Url exposing (Url)
 
 
-type RemoteData a
+type RemoteData a b
     = NotAsked
     | Loading
-    | Failure Http.Error
+    | Failure b
     | Success a
+
+
+resultToRemoteData result =
+    case result of
+        Ok ok ->
+            Success ok
+
+        Err err ->
+            Failure err
+
+
+type alias WebData a =
+    RemoteData a Http.Error
 
 
 type NotLoggedInPage
@@ -33,16 +46,22 @@ type NotLoggedInPage
         }
 
 
+type LoggedInPage
+    = Dashboard
+    | MoviePage Int (RemoteData Movie String)
+
+
 type Route
     = HomeRoute
     | LoginRoute
     | SignupRoute
     | AdminRoute
+    | MovieRoute Int
 
 
 type LocalState
     = Starting (Maybe Route)
-    | LoggedIn { username : String }
+    | LoggedIn { username : String, page : LoggedInPage }
     | NotLoggedIn NotLoggedInPage
     | AdminLogin { password : String, badCredentials : Bool }
     | AdminDashboard { users : List String }
@@ -79,7 +98,7 @@ type alias BackendModel =
     , theaters : Dict String Theater
     , showtimes : List ( Time.Posix, List { movie : Int, theater : String } )
     , now : Time.Posix
-    , lastAllocineResponse : Array (Array (RemoteData String))
+    , lastAllocineResponse : Array (Array (WebData String))
     }
 
 
@@ -102,6 +121,7 @@ type ToBackend
     | AdminLoginRequest { password : String }
     | AdminLogoutRequest
     | AdminRequest AdminRequest
+    | MovieRequest Int
 
 
 type AdminRequest
@@ -122,3 +142,4 @@ type ToFrontend
     | BadCredentials { username : String }
     | AdminLoggedIn (List String)
     | Log String
+    | MovieResponse Int (Result String Movie)

@@ -276,6 +276,23 @@ updateFromFrontend sessionId clientId msg model =
                     else
                         ( model, Cmd.none )
 
+        MovieRequest code ->
+            case Dict.get code model.movies of
+                Just movie ->
+                    ( model
+                    , movie
+                        |> Result.Ok
+                        |> MovieResponse code
+                        |> Lamdera.sendToFrontend clientId
+                    )
+
+                Nothing ->
+                    ( model
+                    , Result.Err "Not found"
+                        |> MovieResponse code
+                        |> Lamdera.sendToFrontend clientId
+                    )
+
 
 adminRequestUpdate clientId msg model =
     case msg of
@@ -419,7 +436,7 @@ countDecoder =
         )
 
 
-decodeTheaters : List (RemoteData String) -> Result String (List ( String, Theater ))
+decodeTheaters : List (WebData String) -> Result String (List ( String, Theater ))
 decodeTheaters results =
     results
         |> Result.combineMap
@@ -457,7 +474,7 @@ theaterDecoder =
         (Decode.field "postalCode" Decode.string)
 
 
-decodeMovies : List (RemoteData String) -> Result String (List ( Int, Movie ))
+decodeMovies : List (WebData String) -> Result String (List ( Int, Movie ))
 decodeMovies results =
     results
         |> Result.combineMap
@@ -510,7 +527,7 @@ movieDecoder =
 
 
 decodeShowtimes :
-    List (RemoteData String)
+    List (WebData String)
     ->
         Result String
             (List
