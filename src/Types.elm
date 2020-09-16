@@ -47,7 +47,7 @@ type NotLoggedInPage
 
 
 type LoggedInPage
-    = Dashboard
+    = Dashboard (RemoteData (List Showtime) String)
     | MoviePage Int (RemoteData Movie String)
 
 
@@ -81,6 +81,15 @@ type alias Theater =
     { name : String
     , address : String
     , postalCode : String
+    }
+
+
+type alias Showtime =
+    { time : Time.Posix
+    , movieCode : Int
+    , movie : Movie
+    , theaterCode : String
+    , theater : Theater
     }
 
 
@@ -122,6 +131,7 @@ type ToBackend
     | AdminLogoutRequest
     | AdminRequest AdminRequest
     | MovieRequest Int
+    | NextShowtimesRequest
 
 
 type AdminRequest
@@ -143,3 +153,4 @@ type ToFrontend
     | AdminLoggedIn (List String)
     | Log String
     | MovieResponse Int (Result String Movie)
+    | NextShowtimesResponse (List Showtime)

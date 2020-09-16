@@ -58,7 +58,17 @@ update : BackendMsg -> Model -> ( Model, Cmd BackendMsg )
 update msg model =
     case msg of
         SetTime now ->
-            ( { model | now = now }, Cmd.none )
+            ( { model
+                | now = now
+                , showtimes =
+                    List.dropWhile
+                        (\( time, _ ) ->
+                            Time.posixToMillis time < Time.posixToMillis now
+                        )
+                        model.showtimes
+              }
+            , Cmd.none
+            )
 
         AllocineResponse { queryNum, page } (Ok response) ->
             if page == 1 then
@@ -292,6 +302,27 @@ updateFromFrontend sessionId clientId msg model =
                         |> MovieResponse code
                         |> Lamdera.sendToFrontend clientId
                     )
+
+        NextShowtimesRequest ->
+            ( model
+            , getFirstShowtimes 10 model.showtimes
+                |> List.filterMap
+                    (\( time, show ) ->
+                        Maybe.map2
+                            (\movie theater ->
+                                { time = time
+                                , movie = movie
+                                , theater = theater
+                                , movieCode = show.movie
+                                , theaterCode = show.theater
+                                }
+                            )
+                            (Dict.get show.movie model.movies)
+                            (Dict.get show.theater model.theaters)
+                    )
+                |> NextShowtimesResponse
+                |> Lamdera.sendToFrontend clientId
+            )
 
 
 adminRequestUpdate clientId msg model =
@@ -552,7 +583,7 @@ decodeShowtimes results =
                         Result.Err "Not a success"
             )
         |> Result.map List.concat
-        |> Result.map (List.sortBy (Tuple.first >> Time.toMillis Time.utc))
+        |> Result.map (List.sortBy (Tuple.first >> Time.posixToMillis))
         |> Result.map gather
 
 
@@ -572,6 +603,24 @@ gather =
                         ( time1, [ show ] ) :: acc
         )
         []
+
+
+getFirstShowtimes number showtimes =
+    if number <= 0 then
+        []
+
+    else
+        case showtimes of
+            [] ->
+                []
+
+            ( _, [] ) :: tail ->
+                getFirstShowtimes number tail
+
+            ( time, show :: showtail ) :: tail ->
+                ( time, show )
+                    :: getFirstShowtimes (number - 1)
+                        (( time, showtail ) :: tail)
 
 
 showtimesDecoder : Decoder (List ( Time.Posix, { movie : Int, theater : String } ))

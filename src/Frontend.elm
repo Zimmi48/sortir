@@ -9,6 +9,9 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Lamdera
+import Time.Format as Time
+import Time.Format.Config.Config_fr_fr as TimeFormat
+import TimeZone
 import Types exposing (..)
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser, parse, s)
@@ -288,9 +291,10 @@ routeChanged maybeRoute model =
                 HomeRoute ->
                     ( { model
                         | state =
-                            LoggedIn { loggedInModel | page = Dashboard }
+                            LoggedIn
+                                { loggedInModel | page = Dashboard Loading }
                       }
-                    , Cmd.none
+                    , Lamdera.sendToBackend NextShowtimesRequest
                     )
 
                 MovieRoute code ->
@@ -325,21 +329,23 @@ updateFromBackend msg model =
 
         YouAreLoggedIn { username } ->
             let
-                returnModel =
+                returnModel status =
                     { model
                         | state =
                             LoggedIn
                                 { username = username
-                                , page = Dashboard
+                                , page = Dashboard status
                                 }
                     }
             in
             case model.state of
                 Starting route ->
-                    routeChanged route returnModel
+                    routeChanged route (returnModel NotAsked)
 
                 _ ->
-                    ( returnModel, Cmd.none )
+                    ( returnModel Loading
+                    , Lamdera.sendToBackend NextShowtimesRequest
+                    )
 
         UsernameAlreadyExists { username } ->
             case model.state of
@@ -428,6 +434,30 @@ updateFromBackend msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        NextShowtimesResponse showtimes ->
+            case model.state of
+                LoggedIn ({ page } as loggedInModel) ->
+                    case page of
+                        Dashboard _ ->
+                            ( { model
+                                | state =
+                                    LoggedIn
+                                        { loggedInModel
+                                            | page =
+                                                showtimes
+                                                    |> Success
+                                                    |> Dashboard
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 view model =
     case model.state of
@@ -484,11 +514,28 @@ viewLoggedIn model =
 
 viewLoggedInPage page =
     case page of
-        Dashboard ->
-            Element.text "Dashboard"
+        Dashboard NotAsked ->
+            Element.none
+
+        Dashboard Loading ->
+            Element.text "Loading next showtimes"
+
+        Dashboard (Failure error) ->
+            "Error retrieving showtimes: " ++ error |> Element.text
+
+        Dashboard (Success showtimes) ->
+            [ "This is the list of upcoming shows:"
+                |> Element.text
+            ]
+                ++ List.map viewShowtime showtimes
+                |> Element.column
+                    [ Element.padding 20
+                    , Element.spacing 15
+                    , Element.centerX
+                    ]
 
         MoviePage _ NotAsked ->
-            Element.text "Error: movie not asked to backend"
+            Element.none
 
         MoviePage _ Loading ->
             Element.text "Loading movie"
@@ -503,8 +550,8 @@ viewLoggedInPage page =
                 |> Maybe.map Element.text
                 |> Maybe.withDefault Element.none
             , movie.actors
-                |> Maybe.map (\actors -> "Actor(s): " ++ actors)
-                |> Maybe.map Element.text
+                |> Maybe.map (\actors -> [ "Actor(s): " ++ actors |> Element.text ])
+                |> Maybe.map (Element.paragraph [])
                 |> Maybe.withDefault Element.none
             , movie.releaseYear
                 |> Maybe.map (\year -> "Release: " ++ String.fromInt year)
@@ -538,7 +585,7 @@ topBar model =
         , Element.padding 10
         , Element.spacing 7
         ]
-        [ "Sortir dashboard" |> Element.text
+        [ "Sortir" |> Element.text
         , "Logged in as "
             ++ model.username
             ++ "."
@@ -700,6 +747,19 @@ viewAdminDashboard model =
             |> Element.layout [ Element.padding 20 ]
         ]
     }
+
+
+viewShowtime { time, movieCode, movie, theaterCode, theater } =
+    [ time
+        |> Time.format TimeFormat.config "%a %-d %b %H:%M" (TimeZone.europe__paris ())
+        |> Element.text
+    , Element.link linkStyle
+        { url = "/movie/" ++ String.fromInt movieCode
+        , label = Element.text movie.title
+        }
+    , Element.text theater.name
+    ]
+        |> Element.row [ Element.spacing 30 ]
 
 
 viewValidation model =
