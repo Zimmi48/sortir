@@ -102,6 +102,25 @@ update msg model =
                         (AdminLoginRequest { password = password })
                     )
 
+                LoggedIn loggedInModel ->
+                    case loggedInModel.page of
+                        SearchPage searchForm _ ->
+                            ( { model
+                                | state =
+                                    LoggedIn
+                                        { loggedInModel
+                                            | page =
+                                                SearchPage searchForm Loading
+                                        }
+                              }
+                            , searchForm
+                                |> NextShowtimesRequest
+                                |> Lamdera.sendToBackend
+                            )
+
+                        _ ->
+                            ( model, Cmd.none )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -192,6 +211,51 @@ update msg model =
                     -- Not supposed to receive these messages in the other cases
                     ( model, Cmd.none )
 
+        ReleaseYearInput eitherMinMax value ->
+            case model.state of
+                LoggedIn loggedInModel ->
+                    case loggedInModel.page of
+                        SearchPage searchForm results ->
+                            let
+                                updateForm newValue =
+                                    case eitherMinMax of
+                                        Min ->
+                                            { searchForm
+                                                | releaseYearMin = newValue
+                                            }
+
+                                        Max ->
+                                            { searchForm
+                                                | releaseYearMax = newValue
+                                            }
+
+                                newSearchForm =
+                                    if value == "" then
+                                        updateForm Nothing
+
+                                    else
+                                        value
+                                            |> String.toInt
+                                            |> Maybe.map (Just >> updateForm)
+                                            |> Maybe.withDefault searchForm
+                            in
+                            ( { model
+                                | state =
+                                    LoggedIn
+                                        { loggedInModel
+                                            | page =
+                                                SearchPage newSearchForm results
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
         AdminAction request ->
             ( model
             , request |> AdminRequest |> Lamdera.sendToBackend
@@ -206,6 +270,7 @@ urlParser =
         , Parser.map SignupRoute (s "signup")
         , Parser.map AdminRoute (s "admin")
         , Parser.map MovieRoute (s "movie" </> Parser.int)
+        , Parser.map SearchRoute (s "search")
         ]
 
 
@@ -294,7 +359,9 @@ routeChanged maybeRoute model =
                             LoggedIn
                                 { loggedInModel | page = Dashboard Loading }
                       }
-                    , Lamdera.sendToBackend NextShowtimesRequest
+                    , { releaseYearMin = Nothing, releaseYearMax = Nothing }
+                        |> NextShowtimesRequest
+                        |> Lamdera.sendToBackend
                     )
 
                 MovieRoute code ->
@@ -306,6 +373,22 @@ routeChanged maybeRoute model =
                                 }
                       }
                     , code |> MovieRequest |> Lamdera.sendToBackend
+                    )
+
+                SearchRoute ->
+                    ( { model
+                        | state =
+                            LoggedIn
+                                { loggedInModel
+                                    | page =
+                                        SearchPage
+                                            { releaseYearMin = Nothing
+                                            , releaseYearMax = Nothing
+                                            }
+                                            NotAsked
+                                }
+                      }
+                    , Cmd.none
                     )
 
                 _ ->
@@ -344,7 +427,9 @@ updateFromBackend msg model =
 
                 _ ->
                     ( returnModel Loading
-                    , Lamdera.sendToBackend NextShowtimesRequest
+                    , { releaseYearMin = Nothing, releaseYearMax = Nothing }
+                        |> NextShowtimesRequest
+                        |> Lamdera.sendToBackend
                     )
 
         UsernameAlreadyExists { username } ->
@@ -447,6 +532,20 @@ updateFromBackend msg model =
                                                 showtimes
                                                     |> Success
                                                     |> Dashboard
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        SearchPage searchForm _ ->
+                            ( { model
+                                | state =
+                                    LoggedIn
+                                        { loggedInModel
+                                            | page =
+                                                showtimes
+                                                    |> Success
+                                                    |> SearchPage searchForm
                                         }
                               }
                             , Cmd.none
@@ -577,6 +676,57 @@ viewLoggedInPage page =
                 |> Maybe.withDefault Element.none
             ]
                 |> Element.column [ Element.spacing 20, Element.padding 50 ]
+
+        SearchPage searchForm results ->
+            [ Element.text "What are your search criteria?"
+            , Input.text []
+                { onChange = ReleaseYearInput Min
+                , text =
+                    searchForm.releaseYearMin
+                        |> Maybe.map String.fromInt
+                        |> Maybe.withDefault ""
+                , placeholder = Nothing
+                , label = "Released after:" |> Element.text |> Input.labelLeft []
+                }
+            , Input.text []
+                { onChange = ReleaseYearInput Max
+                , text =
+                    searchForm.releaseYearMax
+                        |> Maybe.map String.fromInt
+                        |> Maybe.withDefault ""
+                , placeholder = Nothing
+                , label = "Released before:" |> Element.text |> Input.labelLeft []
+                }
+
+            -- , viewBadCredentials model
+            , Input.button buttonStyle
+                { onPress = Just SendButton
+                , label = Element.text "Search"
+                }
+            , case results of
+                NotAsked ->
+                    Element.none
+
+                Loading ->
+                    Element.text "Loading results"
+
+                Failure error ->
+                    "Error while loading results: "
+                        ++ error
+                        |> Element.text
+
+                Success showtimes ->
+                    [ "This is the list of upcoming shows:"
+                        |> Element.text
+                    ]
+                        ++ List.map viewShowtime showtimes
+                        |> Element.column
+                            [ Element.padding 20
+                            , Element.spacing 15
+                            , Element.centerX
+                            ]
+            ]
+                |> Element.column [ Element.centerX, Element.spacing 10 ]
 
 
 topBar model =

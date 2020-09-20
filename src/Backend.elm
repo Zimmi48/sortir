@@ -303,23 +303,9 @@ updateFromFrontend sessionId clientId msg model =
                         |> Lamdera.sendToFrontend clientId
                     )
 
-        NextShowtimesRequest ->
+        NextShowtimesRequest searchCriteria ->
             ( model
-            , getFirstShowtimes 10 model.showtimes
-                |> List.filterMap
-                    (\( time, show ) ->
-                        Maybe.map2
-                            (\movie theater ->
-                                { time = time
-                                , movie = movie
-                                , theater = theater
-                                , movieCode = show.movie
-                                , theaterCode = show.theater
-                                }
-                            )
-                            (Dict.get show.movie model.movies)
-                            (Dict.get show.theater model.theaters)
-                    )
+            , getFirstShowtimes searchCriteria model
                 |> NextShowtimesResponse
                 |> Lamdera.sendToFrontend clientId
             )
@@ -605,22 +591,69 @@ gather =
         []
 
 
-getFirstShowtimes number showtimes =
-    if number <= 0 then
-        []
+getFirstShowtimes : SearchCriteria -> Model -> List Showtime
+getFirstShowtimes criteria model =
+    let
+        aux number showtimes =
+            case ( number, showtimes ) of
+                ( 0, _ ) ->
+                    []
 
-    else
-        case showtimes of
-            [] ->
-                []
+                ( _, [] ) ->
+                    []
 
-            ( _, [] ) :: tail ->
-                getFirstShowtimes number tail
+                ( _, ( _, [] ) :: tail ) ->
+                    aux number tail
 
-            ( time, show :: showtail ) :: tail ->
-                ( time, show )
-                    :: getFirstShowtimes (number - 1)
-                        (( time, showtail ) :: tail)
+                ( _, ( time, show :: showtail ) :: tail ) ->
+                    case
+                        Maybe.map2
+                            (\movie theater ->
+                                { time = time
+                                , movie = movie
+                                , theater = theater
+                                , movieCode = show.movie
+                                , theaterCode = show.theater
+                                }
+                            )
+                            (Dict.get show.movie model.movies)
+                            (Dict.get show.theater model.theaters)
+                    of
+                        Just showtime ->
+                            if matchesCriteria criteria showtime then
+                                showtime
+                                    :: aux (number - 1)
+                                        (( time, showtail ) :: tail)
+
+                            else
+                                aux number (( time, showtail ) :: tail)
+
+                        Nothing ->
+                            aux number (( time, showtail ) :: tail)
+    in
+    aux 10 model.showtimes
+
+
+matchesCriteria : SearchCriteria -> Showtime -> Bool
+matchesCriteria criteria { time, movie, theater } =
+    let
+        releaseYearMin =
+            case ( movie.releaseYear, criteria.releaseYearMin ) of
+                ( Just releaseYear, Just min ) ->
+                    releaseYear >= min
+
+                _ ->
+                    True
+
+        releaseYearMax =
+            case ( movie.releaseYear, criteria.releaseYearMax ) of
+                ( Just releaseYear, Just max ) ->
+                    releaseYear <= max
+
+                _ ->
+                    True
+    in
+    releaseYearMin && releaseYearMax
 
 
 showtimesDecoder : Decoder (List ( Time.Posix, { movie : Int, theater : String } ))

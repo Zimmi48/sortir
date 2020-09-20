@@ -49,6 +49,7 @@ type NotLoggedInPage
 type LoggedInPage
     = Dashboard (RemoteData (List Showtime) String)
     | MoviePage Int (RemoteData Movie String)
+    | SearchPage SearchForm (RemoteData (List Showtime) String)
 
 
 type Route
@@ -57,6 +58,7 @@ type Route
     | SignupRoute
     | AdminRoute
     | MovieRoute Int
+    | SearchRoute
 
 
 type LocalState
@@ -65,6 +67,12 @@ type LocalState
     | NotLoggedIn NotLoggedInPage
     | AdminLogin { password : String, badCredentials : Bool }
     | AdminDashboard { users : List String }
+
+
+type alias SearchForm =
+    { releaseYearMin : Maybe Int
+    , releaseYearMax : Maybe Int
+    }
 
 
 type alias Movie =
@@ -111,6 +119,11 @@ type alias BackendModel =
     }
 
 
+type MinMax
+    = Min
+    | Max
+
+
 type FrontendMsg
     = UrlClicked UrlRequest
     | UrlChanged Url
@@ -119,6 +132,7 @@ type FrontendMsg
     | UsernameInput String
     | PasswordInput String
     | PasswordAgainInput String
+    | ReleaseYearInput MinMax String
     | AdminAction AdminRequest
 
 
@@ -131,7 +145,11 @@ type ToBackend
     | AdminLogoutRequest
     | AdminRequest AdminRequest
     | MovieRequest Int
-    | NextShowtimesRequest
+    | NextShowtimesRequest SearchCriteria
+
+
+type alias SearchCriteria =
+    SearchForm
 
 
 type AdminRequest
