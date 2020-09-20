@@ -907,9 +907,15 @@ viewShowtime { time, movieCode, movie, theaterCode, theater } =
         { url = "/movie/" ++ String.fromInt movieCode
         , label = Element.text movie.title
         }
-    , Element.text theater.name
+    , movie.directors
+        |> Maybe.map Element.text
+        |> Maybe.map (Element.el [ Font.italic ])
+        |> Maybe.withDefault Element.none
+    , theater.name
+        |> Element.text
+        |> Element.el [ Font.bold ]
     ]
-        |> Element.row [ Element.spacing 30 ]
+        |> Element.row [ Element.spacing 30, Element.width Element.fill ]
 
 
 viewValidation model =
