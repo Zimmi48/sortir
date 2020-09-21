@@ -631,7 +631,7 @@ getFirstShowtimes criteria model =
                         Nothing ->
                             aux number (( time, showtail ) :: tail)
     in
-    aux 10 model.showtimes
+    aux 15 model.showtimes
 
 
 matchesCriteria : SearchCriteria -> Showtime -> Bool
