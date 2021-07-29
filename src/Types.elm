@@ -66,7 +66,7 @@ type LocalState
     | LoggedIn { username : String, page : LoggedInPage }
     | NotLoggedIn NotLoggedInPage
     | AdminLogin { password : String, badCredentials : Bool }
-    | AdminDashboard { users : List String }
+    | AdminDashboard { backendLog : List String, users : List String }
 
 
 type alias SearchForm =

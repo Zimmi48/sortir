@@ -482,14 +482,26 @@ updateFromBackend msg model =
                     ( model, Cmd.none )
 
         AdminLoggedIn users ->
-            ( { model | state = AdminDashboard { users = users } }, Cmd.none )
+            ( { model
+                | state =
+                    AdminDashboard { users = users, backendLog = [] }
+              }
+            , Cmd.none
+            )
 
         Log log ->
-            let
-                _ =
-                    Debug.log "Log from backend:" log
-            in
-            ( model, Cmd.none )
+            case model.state of
+                AdminDashboard { users, backendLog } ->
+                    ( { model
+                        | state =
+                            AdminDashboard
+                                { users = users, backendLog = log :: backendLog }
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
         MovieResponse code resp ->
             case model.state of
@@ -879,6 +891,13 @@ viewAdminDashboard model =
                 { onPress = Decode |> AdminAction |> Just
                 , label = Element.text "Decode"
                 }
+          , [ "Backend log:" |> Element.text ]
+                ++ List.map Element.text model.backendLog
+                |> Element.column
+                    [ Element.padding 20
+                    , Element.spacing 15
+                    , Element.centerX
+                    ]
           , [ "This is the list of user accounts:"
                 |> Element.text
             ]

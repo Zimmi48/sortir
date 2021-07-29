@@ -83,9 +83,14 @@ update msg model =
                                     |> Array.set (queryNum + 1)
                                         (Array.fromList [ Loading ])
                           }
-                        , queryAllocine
-                            { queryNum = queryNum + 1, page = 1 }
-                            model.now
+                        , Cmd.batch
+                            [ queryAllocine
+                                { queryNum = queryNum + 1, page = 1 }
+                                model
+                            , "Got a single page, requesting the next query: "
+                                ++ String.fromInt (queryNum + 1)
+                                |> sendLog model
+                            ]
                         )
 
                     Ok pageNumber ->
@@ -107,9 +112,13 @@ update msg model =
                                             )
                                         )
                           }
-                        , queryAllocine
-                            { queryNum = queryNum, page = 2 }
-                            model.now
+                        , Cmd.batch
+                            [ queryAllocine
+                                { queryNum = queryNum, page = 2 }
+                                model
+                            , "Got multiple pages, requesting page 2."
+                                |> sendLog model
+                            ]
                         )
 
                     Err error ->
@@ -127,7 +136,9 @@ update msg model =
                                     )
                                     model.lastAllocineResponse
                           }
-                        , Cmd.none
+                        , "Got an error: "
+                            ++ Decode.errorToString error
+                            |> sendLog model
                         )
 
             else
@@ -148,9 +159,14 @@ update msg model =
                                         |> Array.set (queryNum + 1)
                                             (Array.fromList [ Loading ])
                               }
-                            , queryAllocine
-                                { queryNum = queryNum + 1, page = 1 }
-                                model.now
+                            , Cmd.batch
+                                [ queryAllocine
+                                    { queryNum = queryNum + 1, page = 1 }
+                                    model
+                                , "We have got the last page, requesting the next query: "
+                                    ++ String.fromInt (queryNum + 1)
+                                    |> sendLog model
+                                ]
                             )
 
                         else
@@ -164,16 +180,20 @@ update msg model =
                                         )
                                         model.lastAllocineResponse
                               }
-                            , queryAllocine
-                                { queryNum = queryNum, page = page + 1 }
-                                model.now
+                            , Cmd.batch
+                                [ queryAllocine
+                                    { queryNum = queryNum, page = page + 1 }
+                                    model
+                                , "Requesting the next page: "
+                                    ++ String.fromInt (page + 1)
+                                    |> sendLog model
+                                ]
                             )
 
                     Nothing ->
                         --should never happen
                         ( model
-                        , "Corrupted lastAllocineResponse: "
-                            ++ Debug.toString model.lastAllocineResponse
+                        , "Could not decode last allocine response."
                             |> sendLog model
                         )
 
@@ -184,7 +204,7 @@ update msg model =
                         (\pages -> Array.set (page - 1) (Failure error) pages)
                         model.lastAllocineResponse
               }
-            , Cmd.none
+            , "Got an HTTP error." |> sendLog model
             )
 
 
@@ -338,7 +358,10 @@ adminRequestUpdate clientId msg model =
                         (Array.fromList [ Loading ])
                         model.lastAllocineResponse
               }
-            , queryAllocine { queryNum = 0, page = 1 } model.now
+            , Cmd.batch
+                [ queryAllocine { queryNum = 0, page = 1 } model
+                , "Requesting query 0." |> sendLog model
+                ]
             )
 
         Decode ->
@@ -369,14 +392,11 @@ adminRequestUpdate clientId msg model =
                     (decodeShowtimes results)
             of
                 Ok newModel ->
-                    ( newModel, Cmd.none )
+                    ( newModel, "Successfully decoded." |> sendLog model )
 
                 Err error ->
                     ( model
-                    , "Error while decoding: "
-                        ++ error
-                        |> Log
-                        |> Lamdera.sendToFrontend clientId
+                    , "Error while decoding: " ++ error |> sendLog model
                     )
 
 
@@ -424,14 +444,14 @@ showtimeListUrl { zip, radius } page =
         ]
 
 
-queryAllocine params now =
+queryAllocine params model =
     case Array.get params.queryNum Env.allocineQueries of
         Nothing ->
-            Cmd.none
+            "This query does not exist. Stopping there." |> sendLog model
 
         Just query ->
             Http.get
-                { url = showtimeListUrl query params.page now
+                { url = showtimeListUrl query params.page model.now
                 , expect = Http.expectString (AllocineResponse params)
                 }
 
@@ -546,7 +566,8 @@ movieDecoder =
 decodeShowtimes :
     List (WebData String)
     ->
-        Result String
+        Result
+            String
             (List
                 ( Time.Posix
                 , List
