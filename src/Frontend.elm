@@ -271,6 +271,7 @@ urlParser =
         , Parser.map AdminRoute (s "admin")
         , Parser.map MovieRoute (s "movie" </> Parser.int)
         , Parser.map SearchRoute (s "search")
+        , Parser.map TheatersRoute (s "theaters")
         ]
 
 
@@ -389,6 +390,15 @@ routeChanged maybeRoute model =
                                 }
                       }
                     , Cmd.none
+                    )
+
+                TheatersRoute ->
+                    ( { model
+                        | state =
+                            LoggedIn
+                                { loggedInModel | page = TheatersPage Loading }
+                      }
+                    , ListTheatersRequest |> Lamdera.sendToBackend
                     )
 
                 _ ->
@@ -558,6 +568,30 @@ updateFromBackend msg model =
                                                 showtimes
                                                     |> Success
                                                     |> SearchPage searchForm
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ListTheatersResponse theaters ->
+            case model.state of
+                LoggedIn ({ page } as loggedInModel) ->
+                    case page of
+                        TheatersPage _ ->
+                            ( { model
+                                | state =
+                                    LoggedIn
+                                        { loggedInModel
+                                            | page =
+                                                theaters
+                                                    |> Success
+                                                    |> TheatersPage
                                         }
                               }
                             , Cmd.none
@@ -739,6 +773,26 @@ viewLoggedInPage page =
                             ]
             ]
                 |> Element.column [ Element.centerX, Element.spacing 10 ]
+
+        TheatersPage NotAsked ->
+            Element.none
+
+        TheatersPage Loading ->
+            Element.text "Loading next showtimes"
+
+        TheatersPage (Failure error) ->
+            "Error retrieving showtimes: " ++ error |> Element.text
+
+        TheatersPage (Success theaters) ->
+            [ "This is the list of known theaters:"
+                |> Element.text
+            ]
+                ++ List.map viewTheater theaters
+                |> Element.column
+                    [ Element.padding 20
+                    , Element.spacing 15
+                    , Element.centerX
+                    ]
 
 
 topBar model =
@@ -935,6 +989,13 @@ viewShowtime { time, movieCode, movie, theaterCode, theater } =
         |> Element.el [ Font.bold ]
     ]
         |> Element.row [ Element.spacing 30, Element.width Element.fill ]
+
+
+viewTheater { name, address, postalCode } =
+    [ name |> Element.text |> Element.el [ Font.bold ]
+    , " (" ++ postalCode ++ ")" |> Element.text
+    ]
+        |> Element.row []
 
 
 viewValidation model =

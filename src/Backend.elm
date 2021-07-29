@@ -330,6 +330,14 @@ updateFromFrontend sessionId clientId msg model =
                 |> Lamdera.sendToFrontend clientId
             )
 
+        ListTheatersRequest ->
+            ( model
+            , model.theaters
+                |> Dict.values
+                |> ListTheatersResponse
+                |> Lamdera.sendToFrontend clientId
+            )
+
 
 adminRequestUpdate clientId msg model =
     case msg of

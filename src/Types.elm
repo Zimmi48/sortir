@@ -50,6 +50,7 @@ type LoggedInPage
     = Dashboard (RemoteData (List Showtime) String)
     | MoviePage Int (RemoteData Movie String)
     | SearchPage SearchForm (RemoteData (List Showtime) String)
+    | TheatersPage (RemoteData (List Theater) String)
 
 
 type Route
@@ -59,6 +60,7 @@ type Route
     | AdminRoute
     | MovieRoute Int
     | SearchRoute
+    | TheatersRoute
 
 
 type LocalState
@@ -146,6 +148,7 @@ type ToBackend
     | AdminRequest AdminRequest
     | MovieRequest Int
     | NextShowtimesRequest SearchCriteria
+    | ListTheatersRequest
 
 
 type alias SearchCriteria =
@@ -172,3 +175,4 @@ type ToFrontend
     | Log String
     | MovieResponse Int (Result String Movie)
     | NextShowtimesResponse (List Showtime)
+    | ListTheatersResponse (List Theater)
